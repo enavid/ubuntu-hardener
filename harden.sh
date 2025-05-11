@@ -17,6 +17,11 @@ apt install ufw -y
 ufw default deny incoming
 ufw default allow outgoing
 
+# Add SSH port to firewall list if not already included
+if [[ "$FIREWALL_PORTS" != *"$SSH_PORT"* ]]; then
+  FIREWALL_PORTS="$FIREWALL_PORTS,$SSH_PORT"
+fi
+
 # Allow user-defined ports
 IFS=',' read -ra PORTS <<< "$FIREWALL_PORTS"
 for port in "${PORTS[@]}"; do
