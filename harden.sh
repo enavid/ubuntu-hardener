@@ -12,11 +12,11 @@ echo -e "${BLUE}[*] Updating system packages...${NC}"
 apt update && apt upgrade -y && apt dist-upgrade -y
 
 # Ask for SSH port
-read -p "$(echo -e ${YELLOW}Enter the new SSH port you want to use (e.g., 2222): ${NC})" SSH_PORT
+read -p "$(echo -e "${YELLOW}Enter the new SSH port you want to use (e.g., 2222): ${NC}")" SSH_PORT
 
 # Ask for firewall ports
-read -p "$(echo -e ${YELLOW}Enter comma-separated TCP ports to allow (e.g., 22,80,443): ${NC})" TCP_PORTS
-read -p "$(echo -e ${YELLOW}Enter comma-separated UDP ports to allow (optional, e.g., 53,123): ${NC})" UDP_PORTS
+read -p "$(echo -e "${YELLOW}Enter comma-separated TCP ports to allow (e.g., 22,80,443): ${NC}")" TCP_PORTS
+read -p "$(echo -e "${YELLOW}Enter comma-separated UDP ports to allow (optional, e.g., 53,123): ${NC}")" UDP_PORTS
 
 echo -e "${BLUE}[*] Installing and configuring UFW firewall...${NC}"
 apt install ufw -y
@@ -48,9 +48,9 @@ sed -i "s/^#Port .*/Port $SSH_PORT/" /etc/ssh/sshd_config
 sed -i "s/^Port .*/Port $SSH_PORT/" /etc/ssh/sshd_config
 
 # Ask to create a new user
-read -p "$(echo -e ${YELLOW}Do you want to create a new sudo user? (y/n): ${NC})" CREATE_USER
+read -p "$(echo -e "${YELLOW}Do you want to create a new sudo user? (y/n): ${NC}")" CREATE_USER
 if [[ "$CREATE_USER" == "y" || "$CREATE_USER" == "Y" ]]; then
-    read -p "$(echo -e ${YELLOW}Enter the new username: ${NC})" NEW_USER
+    read -p "$(echo -e "${YELLOW}Enter the new username: ${NC}")" NEW_USER
     adduser "$NEW_USER"
     usermod -aG sudo "$NEW_USER"
     echo -e "${GREEN}[+] User $NEW_USER created and added to sudo group.${NC}"
@@ -96,7 +96,7 @@ systemctl restart fail2ban
 echo -e "${GREEN}[✓] Fail2Ban configured: users with 5 failed SSH attempts will be blocked for 72 hours.${NC}"
 
 # Final message
-echo -e "${GREEN}[✓] Security hardening completed. Rebooting now...${NC}"
+echo -e "${GREEN}[✓] Security hardening completed.${NC}"
 
 # Show details
 echo -e "${GREEN}"
@@ -116,11 +116,10 @@ echo "-----------------------------------------"
 echo -e "${NC}"
 
 # Reboot server
-read -p "$(echo -e ${YELLOW}Do you want to reboot now to apply all changes? (y/n): ${NC})" REBOOT_CONFIRM
+read -p "$(echo -e "${YELLOW}Do you want to reboot now to apply all changes? (y/n): ${NC}")" REBOOT_CONFIRM
 if [[ "$REBOOT_CONFIRM" == "y" || "$REBOOT_CONFIRM" == "Y" ]]; then
     echo -e "${BLUE}Rebooting now...${NC}"
     reboot now
 else
     echo -e "${YELLOW}Reboot skipped. Please reboot manually later to apply all settings properly.${NC}"
 fi
-
