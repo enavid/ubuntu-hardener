@@ -9,7 +9,7 @@ This script automates basic Ubuntu server hardening steps. It interactively asks
 Run this one-liner on your Ubuntu server:
 
 ```bash
-curl -s https://raw.githubusercontent.com/enavid/ubuntu-harden/main/harden.sh | bash
+curl -s https://raw.githubusercontent.com/enavid/ubuntu-hardener/main/harden.sh | bash
 ```
 
 ---
