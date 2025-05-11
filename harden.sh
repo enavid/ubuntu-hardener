@@ -3,7 +3,7 @@
 set -e
 
 echo "[*] Updating system packages..."
-apt update && apt upgrade -y
+apt update && apt upgrade -y && apt dist-upgrade
 
 # Ask for SSH port
 read -p "Enter the new SSH port you want to use (e.g., 2222): " SSH_PORT
