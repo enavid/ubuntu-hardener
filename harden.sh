@@ -49,12 +49,40 @@ sed -i 's/^#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
 sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
 sed -i 's/^PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config
 
-# Restart SSH
-systemctl restart sshd
-
 # Clean up
 echo "[*] Removing unnecessary packages..."
 apt autoremove -y
 apt autoclean -y
+
+# Restart SSH
+systemctl restart ssh
+
+# Install fail2ban if not installed
+if ! command -v fail2ban-server &>/dev/null; then
+    echo "Installing fail2ban..."
+    sudo apt update && sudo apt install -y fail2ban
+    sudo systemctl enable fail2ban
+    sudo systemctl start fail2ban
+fi
+
+# Configure fail2ban to block users after 5 failed attempts
+sudo bash -c 'cat > /etc/fail2ban/jail.local <<EOF
+[sshd]
+enabled = true
+port = 2233
+filter = sshd
+logpath = /var/log/auth.log
+maxretry = 5
+bantime = 72h
+findtime = 10m
+EOF'
+
+# Restart fail2ban service
+sudo systemctl restart fail2ban
+
+echo "Fail2Ban configured: users with 5 failed SSH attempts will be blocked for 72 hour."
+
+# Reboot server
+reboot now
 
 echo "[✓] Security hardening completed."

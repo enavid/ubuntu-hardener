@@ -25,7 +25,8 @@ chmod +x harden.sh
 5. **Optionally creates a new user** and adds them to the sudo group
 6. **Disables root login over SSH** for better security
 7. **Restarts SSH service** to apply changes
-8. **Performs basic cleanup** with `apt autoremove`
+8. **Install fail2ban** and users with 5 failed SSH attempts will be blocked for 72 hour.
+9. **Performs basic cleanup** with `apt autoremove`
 
 ---
 
