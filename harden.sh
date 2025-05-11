@@ -1,88 +1,126 @@
 #!/bin/bash
-
 set -e
 
-echo "[*] Updating system packages..."
-apt update && apt upgrade -y && apt dist-upgrade
+# Define ANSI colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+BLUE='\033[1;34m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}[*] Updating system packages...${NC}"
+apt update && apt upgrade -y && apt dist-upgrade -y
 
 # Ask for SSH port
-read -p "Enter the new SSH port you want to use (e.g., 2222): " SSH_PORT
+read -p "$(echo -e ${YELLOW}Enter the new SSH port you want to use (e.g., 2222): ${NC})" SSH_PORT
 
 # Ask for firewall ports
-read -p "Enter comma-separated ports to allow through the firewall (e.g., 80,443,$SSH_PORT): " FIREWALL_PORTS
+read -p "$(echo -e ${YELLOW}Enter comma-separated TCP ports to allow (e.g., 22,80,443): ${NC})" TCP_PORTS
+read -p "$(echo -e ${YELLOW}Enter comma-separated UDP ports to allow (optional, e.g., 53,123): ${NC})" UDP_PORTS
 
-# Install UFW and configure
-echo "[*] Installing and configuring UFW firewall..."
+echo -e "${BLUE}[*] Installing and configuring UFW firewall...${NC}"
 apt install ufw -y
 ufw default deny incoming
 ufw default allow outgoing
 
-# Add SSH port to firewall list if not already included
-if [[ "$FIREWALL_PORTS" != *"$SSH_PORT"* ]]; then
-  FIREWALL_PORTS="$FIREWALL_PORTS,$SSH_PORT"
+# Ensure SSH port is added to TCP_PORTS
+if [[ "$TCP_PORTS" != *"$SSH_PORT"* ]]; then
+  TCP_PORTS="$TCP_PORTS,$SSH_PORT"
 fi
 
-# Allow user-defined ports
-IFS=',' read -ra PORTS <<< "$FIREWALL_PORTS"
-for port in "${PORTS[@]}"; do
+# Allow TCP ports
+IFS=',' read -ra TCP <<< "$TCP_PORTS"
+for port in "${TCP[@]}"; do
     ufw allow "$port"/tcp
 done
+
+# Allow UDP ports if specified
+IFS=',' read -ra UDP <<< "$UDP_PORTS"
+for port in "${UDP[@]}"; do
+    ufw allow "$port"/udp
+done
+
 ufw enable
 
 # Change SSH port
-echo "[*] Changing SSH port to $SSH_PORT..."
+echo -e "${BLUE}[*] Changing SSH port to $SSH_PORT...${NC}"
 sed -i "s/^#Port .*/Port $SSH_PORT/" /etc/ssh/sshd_config
 sed -i "s/^Port .*/Port $SSH_PORT/" /etc/ssh/sshd_config
 
 # Ask to create a new user
-read -p "Do you want to create a new sudo user? (y/n): " CREATE_USER
+read -p "$(echo -e ${YELLOW}Do you want to create a new sudo user? (y/n): ${NC})" CREATE_USER
 if [[ "$CREATE_USER" == "y" || "$CREATE_USER" == "Y" ]]; then
-    read -p "Enter the new username: " NEW_USER
+    read -p "$(echo -e ${YELLOW}Enter the new username: ${NC})" NEW_USER
     adduser "$NEW_USER"
     usermod -aG sudo "$NEW_USER"
-    echo "[+] User $NEW_USER created and added to sudo group."
+    echo -e "${GREEN}[+] User $NEW_USER created and added to sudo group.${NC}"
 fi
 
 # Disable root login
-echo "[*] Disabling root login via SSH..."
+echo -e "${BLUE}[*] Disabling root login via SSH...${NC}"
 sed -i 's/^#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
 sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
 sed -i 's/^PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config
 
 # Clean up
-echo "[*] Removing unnecessary packages..."
+echo -e "${BLUE}[*] Removing unnecessary packages...${NC}"
 apt autoremove -y
 apt autoclean -y
 
-# Restart SSH
+# Restart SSH service
 systemctl restart ssh
 
 # Install fail2ban if not installed
 if ! command -v fail2ban-server &>/dev/null; then
-    echo "Installing fail2ban..."
-    sudo apt update && sudo apt install -y fail2ban
-    sudo systemctl enable fail2ban
-    sudo systemctl start fail2ban
+    echo -e "${BLUE}[*] Installing fail2ban...${NC}"
+    apt install -y fail2ban
+    systemctl enable fail2ban
+    systemctl start fail2ban
 fi
 
-# Configure fail2ban to block users after 5 failed attempts
-sudo bash -c 'cat > /etc/fail2ban/jail.local <<EOF
+# Configure fail2ban
+echo -e "${BLUE}[*] Configuring Fail2Ban...${NC}"
+cat > /etc/fail2ban/jail.local <<EOF
 [sshd]
 enabled = true
-port = 2233
+port = $SSH_PORT
 filter = sshd
 logpath = /var/log/auth.log
 maxretry = 5
 bantime = 72h
 findtime = 10m
-EOF'
+EOF
 
-# Restart fail2ban service
-sudo systemctl restart fail2ban
+systemctl restart fail2ban
 
-echo "Fail2Ban configured: users with 5 failed SSH attempts will be blocked for 72 hour."
+echo -e "${GREEN}[✓] Fail2Ban configured: users with 5 failed SSH attempts will be blocked for 72 hours.${NC}"
+
+# Final message
+echo -e "${GREEN}[✓] Security hardening completed. Rebooting now...${NC}"
+
+# Show details
+echo -e "${GREEN}"
+echo "-----------------------------------------"
+echo "  Security hardening summary:"
+echo " - System updated (apt + dist-upgrade)"
+echo " - SSH port set to: $SSH_PORT"
+echo " - UFW firewall installed and configured"
+echo "   • TCP ports allowed: $TCP_PORTS"
+if [[ ! -z "$UDP_PORTS" ]]; then
+  echo "   • UDP ports allowed: $UDP_PORTS"
+fi
+echo " - Root SSH login disabled"
+[[ ! -z "$NEW_USER" ]] && echo " - New sudo user created: $NEW_USER"
+echo " - Fail2Ban installed and configured"
+echo "-----------------------------------------"
+echo -e "${NC}"
 
 # Reboot server
-reboot now
+read -p "$(echo -e ${YELLOW}Do you want to reboot now to apply all changes? (y/n): ${NC})" REBOOT_CONFIRM
+if [[ "$REBOOT_CONFIRM" == "y" || "$REBOOT_CONFIRM" == "Y" ]]; then
+    echo -e "${BLUE}Rebooting now...${NC}"
+    reboot now
+else
+    echo -e "${YELLOW}Reboot skipped. Please reboot manually later to apply all settings properly.${NC}"
+fi
 
-echo "[✓] Security hardening completed."
