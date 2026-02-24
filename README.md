@@ -1,10 +1,10 @@
-# 🔐 Ubuntu Security Hardening Script
+# Ubuntu Security Hardening Script
 
 This script automates basic Ubuntu server hardening steps. It interactively asks for user input to customize the setup.
 
 ---
 
-## 🚀 Quick Run
+## Quick Run
 
 Run this one-liner on your Ubuntu server:
 
@@ -16,7 +16,7 @@ chmod +x harden.sh
 
 ---
 
-## 🛡️ What the Script Does
+## What the Script Does
 
 1. **Updates all packages** using `apt update && apt upgrade`
 2. **Prompts for a new SSH port** and configures it
@@ -30,7 +30,7 @@ chmod +x harden.sh
 
 ---
 
-## ⚠️ Important Notes
+## Important Notes
 
 - Make sure the **new SSH port** is allowed in your cloud provider’s firewall or security group before running this script.
 - After the script finishes, you will no longer be able to log in as root via SSH.
@@ -38,7 +38,7 @@ chmod +x harden.sh
 
 ---
 
-## 🧩 Requirements
+## Requirements
 
 - Ubuntu server
 - Must be run as `root` or with `sudo`
