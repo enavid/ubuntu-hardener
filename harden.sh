@@ -80,17 +80,14 @@ set_sshd() {
     fi
 }
 
-set_sshd "Port"                  "$SSH_PORT"
-set_sshd "PermitRootLogin"       "no"
-set_sshd "PasswordAuthentication" "no"
-set_sshd "PubkeyAuthentication"  "yes"
-set_sshd "MaxAuthTries"          "3"
-set_sshd "X11Forwarding"         "no"
-set_sshd "AllowTcpForwarding"    "no"
-set_sshd "ClientAliveInterval"   "300"
-set_sshd "ClientAliveCountMax"   "2"
-
-sshd -t || error_exit "sshd_config has errors. SSH not restarted. Check ${SSHD_CONFIG}.bak.*"
+set_sshd "Port"                "$SSH_PORT"
+set_sshd "PermitRootLogin"     "no"
+set_sshd "PubkeyAuthentication" "yes"
+set_sshd "MaxAuthTries"        "3"
+set_sshd "X11Forwarding"       "no"
+set_sshd "AllowTcpForwarding"  "no"
+set_sshd "ClientAliveInterval" "300"
+set_sshd "ClientAliveCountMax" "2"
 
 # --- New User ---
 read -p "$(echo -e "${YELLOW}Do you want to create a new sudo user? (y/n): ${NC}")" CREATE_USER
@@ -105,13 +102,40 @@ if [[ "$CREATE_USER" == "y" || "$CREATE_USER" == "Y" ]]; then
         adduser "$NEW_USER"
         usermod -aG sudo "$NEW_USER"
         log "${GREEN}[+] User $NEW_USER created and added to sudo group.${NC}"
-        echo ""
-        log "${YELLOW}[!] WARNING: PasswordAuthentication is disabled.${NC}"
-        log "${YELLOW}    Add your SSH public key to /home/$NEW_USER/.ssh/authorized_keys${NC}"
-        log "${YELLOW}    before closing this session, or you will be locked out.${NC}"
-        echo ""
     fi
 fi
+
+# --- SSH Key Check → decide on PasswordAuthentication ---
+has_key=0
+
+# Check root
+[[ -s "/root/.ssh/authorized_keys" ]] && has_key=1
+
+# Check new user if created
+if [[ -n "$NEW_USER" && -s "/home/$NEW_USER/.ssh/authorized_keys" ]]; then
+    has_key=1
+fi
+
+if [[ $has_key -eq 1 ]]; then
+    log "${GREEN}[+] SSH key detected. Disabling password authentication.${NC}"
+    set_sshd "PasswordAuthentication" "no"
+else
+    echo ""
+    log "${RED}[!] No SSH authorized_keys found for any user.${NC}"
+    log "${YELLOW}    If you disable password auth now, you will be locked out.${NC}"
+    log "${YELLOW}    Add your public key to ~/.ssh/authorized_keys first, then re-run.${NC}"
+    echo ""
+    read -p "$(echo -e "${YELLOW}Disable password authentication anyway? (y/n): ${NC}")" DISABLE_PW
+    if [[ "$DISABLE_PW" == "y" || "$DISABLE_PW" == "Y" ]]; then
+        set_sshd "PasswordAuthentication" "no"
+        log "${YELLOW}[!] Password auth disabled without confirmed SSH key — proceed carefully.${NC}"
+    else
+        set_sshd "PasswordAuthentication" "yes"
+        log "${YELLOW}[!] Password authentication left enabled. Add an SSH key and re-run to disable it.${NC}"
+    fi
+fi
+
+sshd -t || error_exit "sshd_config has errors. SSH not restarted. Check ${SSHD_CONFIG}.bak.*"
 
 # --- Cleanup ---
 log "${BLUE}[*] Removing unnecessary packages...${NC}"
@@ -191,7 +215,7 @@ echo "-----------------------------------------"
 echo "  Security hardening summary:"
 echo " - System updated (apt + dist-upgrade)"
 echo " - SSH port: $SSH_PORT"
-echo " - SSH: root login disabled, password auth disabled"
+echo " - SSH: root login disabled, password auth: $(grep -oP '(?<=PasswordAuthentication ).*' /etc/ssh/sshd_config | tail -1)"
 echo " - SSH: MaxAuthTries=3, X11/TCP forwarding off"
 echo " - UFW firewall configured"
 echo "   • TCP ports: $TCP_PORTS"

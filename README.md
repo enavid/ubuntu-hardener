@@ -40,12 +40,14 @@ sudo bash harden.sh
 |------|--------|
 | 8 | Change SSH port to a custom port you choose |
 | 9 | Disable root login (`PermitRootLogin no`) |
-| 10 | Disable password authentication (key-only login) |
-| 11 | Set `MaxAuthTries 3` |
-| 12 | Disable X11 and TCP forwarding |
-| 13 | Configure idle session timeout (5 min) |
-| 14 | Validate config with `sshd -t` before restarting |
-| 15 | Auto-backup `sshd_config` before any changes |
+| 10 | Enable `PubkeyAuthentication yes` |
+| 11 | Check for existing SSH keys on root and new user |
+| 12 | Disable password auth only if a key is found — otherwise ask |
+| 13 | Set `MaxAuthTries 3` |
+| 14 | Disable X11 and TCP forwarding |
+| 15 | Configure idle session timeout (5 min) |
+| 16 | Validate config with `sshd -t` before restarting |
+| 17 | Auto-backup `sshd_config` before any changes |
 
 ### Access Control
 | Step | Action |
@@ -79,12 +81,12 @@ sudo bash harden.sh
 
 ## Important Warnings
 
-**SSH key required before running.**
-The script disables password authentication. If you don't have an SSH key pair set up, you will be locked out after the script finishes. Generate one on your local machine first:
+**SSH key check is built in.**
+Before disabling password authentication, the script checks whether an `authorized_keys` file exists for root or the new user. If no key is found, it warns you and asks for confirmation — so you won't be accidentally locked out. To be safe, add your key before running:
 
 ```bash
 ssh-keygen -t ed25519 -C "your@email.com"
-ssh-copy-id -p <new-port> user@your-server
+ssh-copy-id root@your-server
 ```
 
 **Cloud firewall / security groups.**
