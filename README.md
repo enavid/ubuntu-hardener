@@ -1,42 +1,120 @@
 # Ubuntu Security Hardening Script
 
-This script automates basic Ubuntu server hardening steps. It interactively asks for user input to customize the setup.
+A shell script that automates essential security hardening for a fresh Ubuntu server. Interactive prompts let you customize the setup without editing any files.
 
 ---
 
-## Quick Run
+## Quick Start
 
-Run this one-liner on your Ubuntu server:
+> **Before running:** open your cloud provider's firewall/security group and allow the new SSH port you plan to use. Otherwise you will be locked out after the script runs.
+
+Download and review the script first, then run it as root:
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/enavid/ubuntu-hardener/main/harden.sh)
+curl -Ls https://raw.githubusercontent.com/enavid/ubuntu-hardener/main/harden.sh -o harden.sh
+cat harden.sh          # review before executing
+sudo bash harden.sh
 ```
 
 ---
 
-## What the Script Does
+## What It Does
 
-1. **Updates all packages** using `apt update && apt upgrade`
-2. **Prompts for a new SSH port** and configures it
-3. **Prompts for firewall ports to allow** (e.g., `80,443,22`)
-4. **Installs UFW firewall** and applies your custom rules
-5. **Optionally creates a new user** and adds them to the sudo group
-6. **Disables root login over SSH** for better security
-7. **Restarts SSH service** to apply changes
-8. **Install fail2ban** and users with 5 failed SSH attempts will be blocked for 72 hour.
-9. **Performs basic cleanup** with `apt autoremove`
+### System
+| Step | Action |
+|------|--------|
+| 1 | `apt update && apt upgrade && apt dist-upgrade` |
+| 2 | Install `unattended-upgrades` for automatic security patches |
+| 3 | `apt autoremove && apt autoclean` |
 
----
+### Firewall (UFW)
+| Step | Action |
+|------|--------|
+| 4 | Install and enable UFW |
+| 5 | Default: deny incoming, allow outgoing |
+| 6 | Open custom TCP/UDP ports you specify |
+| 7 | Always keeps the new SSH port open (prevents lockout) |
 
-## Important Notes
+### SSH Hardening
+| Step | Action |
+|------|--------|
+| 8 | Change SSH port to a custom port you choose |
+| 9 | Disable root login (`PermitRootLogin no`) |
+| 10 | Disable password authentication (key-only login) |
+| 11 | Set `MaxAuthTries 3` |
+| 12 | Disable X11 and TCP forwarding |
+| 13 | Configure idle session timeout (5 min) |
+| 14 | Validate config with `sshd -t` before restarting |
+| 15 | Auto-backup `sshd_config` before any changes |
 
-- Make sure the **new SSH port** is allowed in your cloud provider’s firewall or security group before running this script.
-- After the script finishes, you will no longer be able to log in as root via SSH.
-- It is strongly recommended to create a **new sudo user** for administrative access.
+### Access Control
+| Step | Action |
+|------|--------|
+| 16 | Optionally create a new sudo user |
+
+### Intrusion Prevention
+| Step | Action |
+|------|--------|
+| 17 | Install and configure `fail2ban` |
+| 18 | SSH: 5 failed attempts → 72-hour ban |
+
+### Kernel Hardening (sysctl)
+| Step | Action |
+|------|--------|
+| 19 | IP spoofing protection (`rp_filter`) |
+| 20 | SYN flood protection (`tcp_syncookies`) |
+| 21 | Disable IP source routing |
+| 22 | Ignore and disable ICMP redirects |
+| 23 | Log suspicious (martian) packets |
+| 24 | TCP time-wait assassination protection |
 
 ---
 
 ## Requirements
 
-- Ubuntu server
-- Must be run as `root` or with `sudo`
+- Ubuntu 20.04 / 22.04 / 24.04
+- Must be run as `root`
+
+---
+
+## Important Warnings
+
+**SSH key required before running.**
+The script disables password authentication. If you don't have an SSH key pair set up, you will be locked out after the script finishes. Generate one on your local machine first:
+
+```bash
+ssh-keygen -t ed25519 -C "your@email.com"
+ssh-copy-id -p <new-port> user@your-server
+```
+
+**Cloud firewall / security groups.**
+Most cloud providers (AWS, Hetzner, DigitalOcean, etc.) have a firewall layer outside the OS. Allow your new SSH port there *before* running the script.
+
+**Password authentication is disabled.**
+After the script runs, SSH login with a password will be rejected. Only key-based login works.
+
+---
+
+## Logs
+
+All actions are logged to `/var/log/hardening.log` with timestamps.
+
+```bash
+cat /var/log/hardening.log
+```
+
+---
+
+## After Running
+
+Reconnect on the new SSH port to verify everything works before rebooting:
+
+```bash
+ssh -p <new-port> user@your-server
+```
+
+Then reboot when prompted (or manually):
+
+```bash
+sudo reboot
+```
